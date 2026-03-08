@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.hellofresh.com)",
+      "Bash(echo === No query ===:*)",
+      "Bash(echo === EN: chicken ===:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(gh auth:*)",
+      "Bash(export:*)"
+    ]
+  }
+}

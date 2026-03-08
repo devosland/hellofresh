@@ -1,0 +1,101 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { fetchRecipe, deleteRecipe } from '../api';
+import { t } from '../i18n';
+
+export default function RecipeDetail({ lang }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [recipe, setRecipe] = useState(null);
+  const i = t(lang);
+
+  useEffect(() => {
+    fetchRecipe(id).then(setRecipe);
+  }, [id]);
+
+  if (!recipe) {
+    return <p style={{ padding: '40px', textAlign: 'center' }}>{i.loading}</p>;
+  }
+
+  const handleDelete = async () => {
+    if (window.confirm(i.confirmDelete(recipe.title))) {
+      await deleteRecipe(recipe.id);
+      navigate('/');
+    }
+  };
+
+  return (
+    <div className="recipe-detail">
+      {recipe.imageUrl && (
+        <img src={recipe.imageUrl} alt={recipe.title} className="hero-image" />
+      )}
+      <div className="recipe-detail-content">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+          <h2>{recipe.title}</h2>
+          <div className="btn-group">
+            <Link to={`/edit/${recipe.id}`} className="btn btn-outline btn-sm">
+              {i.edit}
+            </Link>
+            <button onClick={handleDelete} className="btn btn-danger btn-sm">
+              {i.delete}
+            </button>
+          </div>
+        </div>
+
+        {recipe.description && <p style={{ color: 'var(--text-light)' }}>{recipe.description}</p>}
+
+        <div className="meta-row">
+          {recipe.servings && <span className="meta-badge">{i.servings(recipe.servings)}</span>}
+          {recipe.prepTime && <span className="meta-badge">{i.prep}: {recipe.prepTime.replace('PT', '').toLowerCase()}</span>}
+          {recipe.totalTime && <span className="meta-badge">{i.total}: {recipe.totalTime.replace('PT', '').toLowerCase()}</span>}
+          {recipe.difficulty && <span className="meta-badge">{recipe.difficulty}</span>}
+          {recipe.cuisine && <span className="meta-badge">{recipe.cuisine}</span>}
+        </div>
+
+        {recipe.tags?.length > 0 && (
+          <div className="tags-list" style={{ marginBottom: '12px' }}>
+            {recipe.tags.map((tag) => (
+              <span key={tag} className="tag">{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {recipe.sourceUrl && (
+          <p style={{ fontSize: '0.85rem' }}>
+            <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">
+              {i.viewOriginal}
+            </a>
+          </p>
+        )}
+
+        <h3>{i.ingredients}</h3>
+        <ul className="ingredients-list">
+          {recipe.ingredients.map((ing) => (
+            <li key={ing.id}>
+              <span className="amount">
+                {ing.amount} {ing.unit}
+              </span>{' '}
+              {ing.name}
+            </li>
+          ))}
+        </ul>
+
+        <h3>{i.instructions}</h3>
+        <ol className="steps-list">
+          {recipe.steps.map((step) => (
+            <li key={step.id}>
+              {step.instruction}
+              {step.imageUrl && <img src={step.imageUrl} alt={`${i.steps} ${step.stepNumber}`} loading="lazy" />}
+            </li>
+          ))}
+        </ol>
+
+        <div style={{ marginTop: '32px' }}>
+          <Link to="/" className="btn btn-outline">
+            {i.backToRecipes}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
