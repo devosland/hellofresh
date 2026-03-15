@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { fetchRecipes, fetchTags } from '../api';
 import { t as getT } from '../i18n';
 
@@ -15,14 +15,16 @@ const FILTERS = {
 };
 
 export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearSelection }) {
-  const [query, setQuery] = useState('');
-  const [activeSearch, setActiveSearch] = useState('');
-  const [activeTags, setActiveTags] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSearch = searchParams.get('search') || '';
+  const activeTagsStr = searchParams.get('tags') || '';
+  const activeTags = activeTagsStr ? activeTagsStr.split(',') : [];
+  const page = parseInt(searchParams.get('page') || '1');
+
+  const [query, setQuery] = useState(activeSearch);
   const [availableTags, setAvailableTags] = useState({ meals: [], cuisines: [] });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const navigate = useNavigate();
   const i = getT(lang);
 
   // Load tags dynamically for the current language
@@ -50,14 +52,31 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
     });
   }, [lang]);
 
+  // Helper to update URL search params
+  const updateParams = useCallback((updates) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null || value === '' || (value === '1' && key === 'page')) {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   // Reset search when language changes
+  const prevLangRef = useRef(lang);
   useEffect(() => {
-    setQuery('');
-    setActiveSearch('');
-    setActiveTags([]);
-    setResults(null);
-    setPage(1);
-  }, [lang]);
+    if (prevLangRef.current !== lang) {
+      prevLangRef.current = lang;
+      setQuery('');
+      setSearchParams({}, { replace: true });
+      setResults(null);
+    }
+  }, [lang, setSearchParams]);
 
   const doSearch = useCallback(async (searchTerm, tags, pageNum, language) => {
     if (!searchTerm && tags.length === 0) {
@@ -76,28 +95,27 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
   }, []);
 
   useEffect(() => {
-    if (activeSearch || activeTags.length > 0) {
+    if (activeSearch || activeTagsStr) {
       doSearch(activeSearch, activeTags, page, lang);
     }
-  }, [activeSearch, activeTags, page, lang, doSearch]);
+  }, [activeSearch, activeTagsStr, page, lang, doSearch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setPage(1);
-    setActiveSearch(query.trim());
+    updateParams({ search: query.trim(), page: '1' });
   };
 
   const toggleTag = (tag) => {
-    setPage(1);
-    setActiveTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    const newTags = activeTags.includes(tag)
+      ? activeTags.filter((t) => t !== tag)
+      : [...activeTags, tag];
+    updateParams({ tags: newTags.join(',') || null, page: '1' });
   };
 
   const hasSearched = activeSearch || activeTags.length > 0;
 
   return (
-    <div className={selectedIds.length > 0 ? 'fab-container' : ''}>
+    <div>
       <div className={`search-hero ${hasSearched ? 'search-hero--compact' : ''}`}>
         <h2 className="search-hero-title">{i.heroTitle}</h2>
         <form onSubmit={handleSubmit} className="search-form">
@@ -169,10 +187,8 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
               className="btn btn-outline btn-sm"
               onClick={() => {
                 setQuery('');
-                setActiveSearch('');
-                setActiveTags([]);
+                setSearchParams({}, { replace: true });
                 setResults(null);
-                setPage(1);
               }}
             >
               {i.clearAll}
@@ -191,7 +207,7 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
                     className={`select-checkbox ${selectedIds.includes(recipe.id) ? 'selected' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onToggleSelect(recipe.id);
+                      onToggleSelect(recipe.id, recipe.title);
                     }}
                   >
                     {selectedIds.includes(recipe.id) ? '\u2713' : ''}
@@ -226,11 +242,11 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
 
           {results.totalPages > 1 && (
             <div className="pagination">
-              <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) })}>
                 {i.previous}
               </button>
               <span className="page-info">{i.page(results.page, results.totalPages)}</span>
-              <button className="btn btn-outline btn-sm" disabled={page >= results.totalPages} onClick={() => setPage((p) => p + 1)}>
+              <button className="btn btn-outline btn-sm" disabled={page >= results.totalPages} onClick={() => updateParams({ page: String(page + 1) })}>
                 {i.next}
               </button>
             </div>
@@ -238,20 +254,6 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
         </>
       )}
 
-      {selectedIds.length > 0 && (
-        <div className="selection-bar">
-          <span>{i.selected(selectedIds.length)}</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={onClearSelection}>{i.clear}</button>
-            <button
-              onClick={() => navigate('/shopping-list')}
-              style={{ background: 'var(--primary)', color: 'white' }}
-            >
-              {i.genList}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
