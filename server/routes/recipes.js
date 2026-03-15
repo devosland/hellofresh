@@ -64,14 +64,17 @@ router.get('/', async (req, res) => {
     const where = { AND: [{ language: lang }] };
 
     if (search) {
-      where.AND.push({
-        OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { cuisine: { contains: search, mode: 'insensitive' } },
-          { ingredients: { some: { name: { contains: search, mode: 'insensitive' } } } },
-        ],
-      });
+      const words = search.trim().split(/\s+/).filter(Boolean);
+      for (const word of words) {
+        where.AND.push({
+          OR: [
+            { title: { contains: word, mode: 'insensitive' } },
+            { description: { contains: word, mode: 'insensitive' } },
+            { cuisine: { contains: word, mode: 'insensitive' } },
+            { ingredients: { some: { name: { contains: word, mode: 'insensitive' } } } },
+          ],
+        });
+      }
     }
 
     if (tags) {

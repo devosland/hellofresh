@@ -35,6 +35,20 @@ const translations = {
     ingredients: 'Ingredients',
     instructions: 'Instructions',
     backToRecipes: 'Back to recipes',
+    selectRecipe: 'Select',
+    selectedLabel: 'Selected',
+    printRecipe: 'Print',
+    remove: 'Remove',
+
+    // Cart & saved meal plans
+    mySelection: 'My Selection',
+    cartEmpty: 'No recipes selected and no saved plans. Browse recipes and select some!',
+    savePlan: 'Save plan',
+    savedPlans: 'Saved plans',
+    planName: 'Plan name',
+    loadPlan: 'Load',
+    deletePlan: 'Delete',
+    confirmDeletePlan: (name) => `Delete plan "${name}"?`,
 
     // RecipeForm
     editRecipe: 'Edit Recipe',
@@ -137,6 +151,20 @@ const translations = {
     ingredients: 'Ingredients',
     instructions: 'Instructions',
     backToRecipes: 'Retour aux recettes',
+    selectRecipe: 'Selectionner',
+    selectedLabel: 'Selectionnee',
+    printRecipe: 'Imprimer',
+    remove: 'Retirer',
+
+    // Cart & saved meal plans
+    mySelection: 'Ma selection',
+    cartEmpty: 'Aucune recette selectionnee et aucun plan sauvegarde. Parcourez les recettes!',
+    savePlan: 'Sauvegarder le plan',
+    savedPlans: 'Plans sauvegardes',
+    planName: 'Nom du plan',
+    loadPlan: 'Charger',
+    deletePlan: 'Supprimer',
+    confirmDeletePlan: (name) => `Supprimer le plan "${name}"?`,
 
     // RecipeForm
     editRecipe: 'Modifier la recette',
