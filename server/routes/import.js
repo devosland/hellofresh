@@ -1,8 +1,15 @@
 import { Router } from 'express';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import prisma from '../db.js';
 import { bulkImportSchema, validate } from '../validation.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SCRAPE_STATUS_FILE = path.join(__dirname, '..', '..', 'scrape-status.json');
 
 const HF_IMAGE_BASE = 'https://img.hellofresh.com/f_auto,fl_lossy,q_auto,w_1200/hellofresh_s3';
 
@@ -156,11 +163,31 @@ const CALORIE_SEGMENTS = [
   { min: 1201, max: 9999 },
 ];
 
-let scrapeStatus = {
+const defaultScrapeStatus = {
   running: false, imported: 0, skipped: 0, failed: 0,
   total: 0, errors: [], done: false, lang: '',
   segment: '', segmentsCompleted: 0, segmentsTotal: 0,
 };
+
+function loadScrapeStatus() {
+  try {
+    if (fs.existsSync(SCRAPE_STATUS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SCRAPE_STATUS_FILE, 'utf8'));
+      // If it was running when server stopped, mark as not running
+      if (data.running) data.running = false;
+      return data;
+    }
+  } catch { /* ignore */ }
+  return { ...defaultScrapeStatus };
+}
+
+function saveScrapeStatus() {
+  try {
+    fs.writeFileSync(SCRAPE_STATUS_FILE, JSON.stringify(scrapeStatus));
+  } catch { /* ignore */ }
+}
+
+let scrapeStatus = loadScrapeStatus();
 
 async function countSegment(token, baseUrl, extraParams = '') {
   const url = `${baseUrl}&offset=0&limit=1${extraParams}`;
@@ -199,7 +226,7 @@ async function scrapeSegment(token, config, lang, baseUrl, extraParams, existing
         const slug = hfRecipe.slug || '';
         const sourceUrl = `https://${config.domain}/recipes/${slug}`;
 
-        if (existingUrls.has(sourceUrl)) {
+        if (existingUrls.has(sourceUrl) || existingTitles.has(hfRecipe.name)) {
           scrapeStatus.skipped++;
           continue;
         }
@@ -217,6 +244,7 @@ async function scrapeSegment(token, config, lang, baseUrl, extraParams, existing
     }
 
     offset += items.length;
+    saveScrapeStatus();
     await new Promise((r) => setTimeout(r, 200));
   }
 
@@ -253,12 +281,13 @@ router.post('/hellofresh/scrape-all', async (req, res) => {
       const totalAvailable = await countSegment(token, baseUrl);
       scrapeStatus.total = limit > 0 ? Math.min(limit, totalAvailable) : totalAvailable;
 
-      // Get existing URLs to skip duplicates
+      // Get existing URLs and titles to skip duplicates
       const existing = await prisma.recipe.findMany({
         where: { language: lang },
-        select: { sourceUrl: true },
+        select: { sourceUrl: true, title: true },
       });
       const existingUrls = new Set(existing.map((r) => r.sourceUrl).filter(Boolean));
+      const existingTitles = new Set(existing.map((r) => r.title));
 
       // Build segment plan: check which segments need sub-splitting
       const segments = [];
@@ -305,6 +334,7 @@ router.post('/hellofresh/scrape-all', async (req, res) => {
       scrapeStatus.running = false;
       scrapeStatus.done = true;
       scrapeStatus.segment = 'complete';
+      saveScrapeStatus();
     }
   })();
 });

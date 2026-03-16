@@ -3,3 +3,4 @@ client/dist
 uploads
 .env
 .env.docker
+scrape-status.json
