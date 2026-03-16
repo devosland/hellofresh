@@ -9,12 +9,28 @@ export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect })
   const location = useLocation();
   const canGoBack = location.key !== 'default';
   const [recipe, setRecipe] = useState(null);
+  const [error, setError] = useState(null);
   const i = t(lang);
   const isSelected = recipe ? selectedIds.includes(recipe.id) : false;
 
   useEffect(() => {
-    fetchRecipe(id).then(setRecipe);
+    setRecipe(null);
+    setError(null);
+    fetchRecipe(id)
+      .then(setRecipe)
+      .catch((err) => setError(err.message));
   }, [id]);
+
+  if (error) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <p style={{ color: 'var(--danger)', marginBottom: '16px' }}>{error}</p>
+        <button onClick={() => canGoBack ? navigate(-1) : navigate('/')} className="btn btn-outline">
+          {i.backToRecipes}
+        </button>
+      </div>
+    );
+  }
 
   if (!recipe) {
     return <p style={{ padding: '40px', textAlign: 'center' }}>{i.loading}</p>;

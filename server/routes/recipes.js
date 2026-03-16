@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import prisma from '../db.js';
+import { langSchema, recipeCreateSchema, recipeUpdateSchema, validate } from '../validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,20 +28,14 @@ const router = Router();
 // Get available tags for filters (scoped by language)
 router.get('/tags', async (req, res) => {
   try {
-    const lang = req.query.lang || 'en';
-    const recipes = await prisma.recipe.findMany({
-      where: { language: lang },
-      select: { tags: true },
-    });
-    const counts = {};
-    for (const r of recipes) {
-      for (const t of r.tags) {
-        counts[t] = (counts[t] || 0) + 1;
-      }
-    }
-    const tags = Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+    const lang = langSchema.parse(req.query.lang);
+    const tags = await prisma.$queryRaw`
+      SELECT unnest(tags) AS name, COUNT(*)::int AS count
+      FROM "Recipe"
+      WHERE language = ${lang}
+      GROUP BY name
+      ORDER BY count DESC
+    `;
     res.json(tags);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -50,7 +45,8 @@ router.get('/tags', async (req, res) => {
 // Search recipes (returns nothing if no query)
 router.get('/', async (req, res) => {
   try {
-    const { search, tags, page = '1', limit = '24', lang = 'en' } = req.query;
+    const { search, tags, page = '1', limit = '24' } = req.query;
+    const lang = langSchema.parse(req.query.lang);
 
     // No search = no results (search-engine style)
     if (!search && !tags) {
@@ -86,7 +82,6 @@ router.get('/', async (req, res) => {
     const [recipes, total] = await Promise.all([
       prisma.recipe.findMany({
         where: finalWhere,
-        include: { ingredients: true, steps: { orderBy: { stepNumber: 'asc' } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
@@ -119,33 +114,40 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create recipe
+// Create recipe (multipart upload)
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     const data = JSON.parse(req.body.data || '{}');
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : data.imageUrl || null;
+    const result = recipeCreateSchema.safeParse(data);
+    if (!result.success) {
+      const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+      return res.status(400).json({ error: 'Validation failed', details: errors });
+    }
+    const validated = result.data;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : validated.imageUrl || null;
 
     const recipe = await prisma.recipe.create({
       data: {
-        title: data.title,
-        description: data.description,
+        title: validated.title,
+        description: validated.description,
         imageUrl,
-        servings: data.servings || 2,
-        prepTime: data.prepTime,
-        totalTime: data.totalTime,
-        difficulty: data.difficulty,
-        cuisine: data.cuisine,
-        tags: data.tags || [],
-        sourceUrl: data.sourceUrl,
+        servings: validated.servings,
+        prepTime: validated.prepTime,
+        totalTime: validated.totalTime,
+        difficulty: validated.difficulty,
+        cuisine: validated.cuisine,
+        tags: validated.tags,
+        sourceUrl: validated.sourceUrl,
+        language: validated.language,
         ingredients: {
-          create: (data.ingredients || []).map((ing) => ({
+          create: validated.ingredients.map((ing) => ({
             name: ing.name,
             amount: ing.amount,
             unit: ing.unit,
           })),
         },
         steps: {
-          create: (data.steps || []).map((step, i) => ({
+          create: validated.steps.map((step, i) => ({
             stepNumber: step.stepNumber || i + 1,
             instruction: step.instruction,
             imageUrl: step.imageUrl,
@@ -161,7 +163,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // Create recipe from JSON (no file upload)
-router.post('/json', async (req, res) => {
+router.post('/json', validate(recipeCreateSchema), async (req, res) => {
   try {
     const data = req.body;
     const recipe = await prisma.recipe.create({
@@ -169,22 +171,23 @@ router.post('/json', async (req, res) => {
         title: data.title,
         description: data.description,
         imageUrl: data.imageUrl || null,
-        servings: data.servings || 2,
+        servings: data.servings,
         prepTime: data.prepTime,
         totalTime: data.totalTime,
         difficulty: data.difficulty,
         cuisine: data.cuisine,
-        tags: data.tags || [],
+        tags: data.tags,
         sourceUrl: data.sourceUrl,
+        language: data.language,
         ingredients: {
-          create: (data.ingredients || []).map((ing) => ({
+          create: data.ingredients.map((ing) => ({
             name: ing.name,
             amount: ing.amount,
             unit: ing.unit,
           })),
         },
         steps: {
-          create: (data.steps || []).map((step, i) => ({
+          create: data.steps.map((step, i) => ({
             stepNumber: step.stepNumber || i + 1,
             instruction: step.instruction,
             imageUrl: step.imageUrl,
@@ -204,42 +207,56 @@ router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const data = JSON.parse(req.body.data || '{}');
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : data.imageUrl;
+    const result = recipeUpdateSchema.safeParse(data);
+    if (!result.success) {
+      const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+      return res.status(400).json({ error: 'Validation failed', details: errors });
+    }
+    const validated = result.data;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : validated.imageUrl;
 
-    // Delete existing ingredients and steps
-    await prisma.ingredient.deleteMany({ where: { recipeId: id } });
-    await prisma.step.deleteMany({ where: { recipeId: id } });
+    // Check recipe exists
+    const existing = await prisma.recipe.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
 
-    const recipe = await prisma.recipe.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        ...(imageUrl !== undefined && { imageUrl }),
-        servings: data.servings || 2,
-        prepTime: data.prepTime,
-        totalTime: data.totalTime,
-        difficulty: data.difficulty,
-        cuisine: data.cuisine,
-        tags: data.tags || [],
-        sourceUrl: data.sourceUrl,
-        ingredients: {
-          create: (data.ingredients || []).map((ing) => ({
-            name: ing.name,
-            amount: ing.amount,
-            unit: ing.unit,
-          })),
+    // Atomic delete + recreate
+    const recipe = await prisma.$transaction(async (tx) => {
+      await tx.ingredient.deleteMany({ where: { recipeId: id } });
+      await tx.step.deleteMany({ where: { recipeId: id } });
+
+      return tx.recipe.update({
+        where: { id },
+        data: {
+          title: validated.title,
+          description: validated.description,
+          ...(imageUrl !== undefined && { imageUrl }),
+          servings: validated.servings,
+          prepTime: validated.prepTime,
+          totalTime: validated.totalTime,
+          difficulty: validated.difficulty,
+          cuisine: validated.cuisine,
+          tags: validated.tags,
+          sourceUrl: validated.sourceUrl,
+          language: validated.language,
+          ingredients: {
+            create: validated.ingredients.map((ing) => ({
+              name: ing.name,
+              amount: ing.amount,
+              unit: ing.unit,
+            })),
+          },
+          steps: {
+            create: validated.steps.map((step, i) => ({
+              stepNumber: step.stepNumber || i + 1,
+              instruction: step.instruction,
+              imageUrl: step.imageUrl,
+            })),
+          },
         },
-        steps: {
-          create: (data.steps || []).map((step, i) => ({
-            stepNumber: step.stepNumber || i + 1,
-            instruction: step.instruction,
-            imageUrl: step.imageUrl,
-          })),
-        },
-      },
-      include: { ingredients: true, steps: true },
+        include: { ingredients: true, steps: true },
+      });
     });
+
     res.json(recipe);
   } catch (err) {
     res.status(500).json({ error: err.message });

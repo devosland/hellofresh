@@ -2,6 +2,7 @@ import { Router } from 'express';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import prisma from '../db.js';
+import { bulkImportSchema, validate } from '../validation.js';
 
 const HF_IMAGE_BASE = 'https://img.hellofresh.com/f_auto,fl_lossy,q_auto,w_1200/hellofresh_s3';
 
@@ -320,12 +321,9 @@ router.post('/hellofresh/scrape-stop', (req, res) => {
 });
 
 // Bulk import from JSON (e.g., exported from Obsidian)
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', validate(bulkImportSchema), async (req, res) => {
   try {
     const { recipes, language } = req.body;
-    if (!Array.isArray(recipes)) return res.status(400).json({ error: 'Expected an array of recipes' });
-
-    const lang = language || 'en';
     const created = [];
     for (const data of recipes) {
       const recipe = await prisma.recipe.create({
@@ -340,7 +338,7 @@ router.post('/bulk', async (req, res) => {
           cuisine: data.cuisine || null,
           tags: data.tags || [],
           sourceUrl: data.sourceUrl || null,
-          language: lang,
+          language,
           ingredients: {
             create: (data.ingredients || []).map((ing) => ({
               name: ing.name || ing,
