@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { t as getT } from '../i18n';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const PLANS_KEY = 'mealPlans';
 
@@ -21,6 +22,7 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
   const navigate = useNavigate();
   const [savedPlans, setSavedPlans] = useState(loadSavedPlans);
   const [planName, setPlanName] = useState('');
+  const [planToDelete, setPlanToDelete] = useState(null);
 
   const savePlan = () => {
     const name = planName.trim();
@@ -41,11 +43,12 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
     onLoadPlan(plan.recipes);
   };
 
-  const deletePlan = (plan) => {
-    if (!window.confirm(i.confirmDeletePlan(plan.name))) return;
-    const updated = savedPlans.filter((p) => p.id !== plan.id);
+  const confirmDeletePlan = () => {
+    if (!planToDelete) return;
+    const updated = savedPlans.filter((p) => p.id !== planToDelete.id);
     setSavedPlans(updated);
     persistPlans(updated);
+    setPlanToDelete(null);
   };
 
   return (
@@ -125,7 +128,7 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
                   <button className="btn btn-outline btn-sm" onClick={() => loadPlan(plan)}>
                     {i.loadPlan}
                   </button>
-                  <button className="btn btn-outline btn-sm delete-plan" onClick={() => deletePlan(plan)}>
+                  <button className="btn btn-outline btn-sm delete-plan" onClick={() => setPlanToDelete(plan)}>
                     {i.deletePlan}
                   </button>
                 </div>
@@ -134,6 +137,17 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!planToDelete}
+        title={i.deletePlan}
+        message={planToDelete ? i.confirmDeletePlan(planToDelete.name) : ''}
+        confirmLabel={i.deletePlan}
+        cancelLabel={i.cancel}
+        danger
+        onConfirm={confirmDeletePlan}
+        onCancel={() => setPlanToDelete(null)}
+      />
     </div>
   );
 }

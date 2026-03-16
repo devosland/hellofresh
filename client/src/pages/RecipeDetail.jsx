@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { fetchRecipe, deleteRecipe } from '../api';
 import { t } from '../i18n';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect }) {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect })
   const canGoBack = location.key !== 'default';
   const [recipe, setRecipe] = useState(null);
   const [error, setError] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const i = t(lang);
   const isSelected = recipe ? selectedIds.includes(recipe.id) : false;
 
@@ -37,10 +39,8 @@ export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect })
   }
 
   const handleDelete = async () => {
-    if (window.confirm(i.confirmDelete(recipe.title))) {
-      await deleteRecipe(recipe.id);
-      navigate('/');
-    }
+    await deleteRecipe(recipe.id);
+    navigate('/');
   };
 
   return (
@@ -66,7 +66,7 @@ export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect })
               <Link to={`/edit/${recipe.id}`} className="btn btn-outline btn-sm">
                 {i.edit}
               </Link>
-              <button onClick={handleDelete} className="btn btn-danger btn-sm">
+              <button onClick={() => setShowDeleteConfirm(true)} className="btn btn-danger btn-sm">
                 {i.delete}
               </button>
             </div>
@@ -174,6 +174,17 @@ export default function RecipeDetail({ lang, selectedIds = [], onToggleSelect })
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={i.delete}
+        message={i.confirmDelete(recipe.title)}
+        confirmLabel={i.delete}
+        cancelLabel={i.cancel}
+        danger
+        onConfirm={() => { setShowDeleteConfirm(false); handleDelete(); }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </>
   );
 }
