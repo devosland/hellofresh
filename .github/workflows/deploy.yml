@@ -1,0 +1,72 @@
+name: Deploy Recettes
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    description: "Manual redeploy to VPS1"
+
+env:
+  VPS1_USER: ubuntu
+  VPS1_HOST: 51.178.80.50
+  VPS1_PORT: 51422
+  APP_DIR: /opt/hellofresh
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_deploy
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Deploy to VPS1
+        run: |
+          echo ">> Deploying hellofresh to VPS #1"
+          ssh -p "$VPS1_PORT" "$VPS1_USER@$VPS1_HOST" << 'DEPLOY'
+            set -e
+
+            # Clone on first deploy, pull on subsequent
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone https://github.com/devosland/hellofresh.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin master
+            git reset --hard origin/master
+
+            # Rebuild and restart
+            docker compose up --build -d --remove-orphans
+
+            # Wait for app to be healthy
+            echo ">> Waiting for app to start..."
+            sleep 5
+            if curl -sf http://localhost:3001/ > /dev/null 2>&1; then
+              echo ">> Deploy successful — app is responding"
+            else
+              echo ">> Warning: app not responding yet (may still be starting)"
+            fi
+
+            # Cleanup old images
+            docker image prune -f
+          DEPLOY
+        env:
+          APP_DIR: /opt/hellofresh
+
+      - name: Cleanup SSH
+        if: always()
+        run: |
+          ssh-agent -k || true
+          rm -f ~/.ssh/id_deploy
