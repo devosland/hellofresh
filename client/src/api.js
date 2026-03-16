@@ -1,5 +1,13 @@
 const BASE = '/api';
 
+async function checkResponse(res) {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchRecipes({ search = '', tags = '', page = 1, limit = 24, lang = 'en' } = {}) {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
@@ -8,17 +16,17 @@ export async function fetchRecipes({ search = '', tags = '', page = 1, limit = 2
   params.set('limit', limit);
   params.set('lang', lang);
   const res = await fetch(`${BASE}/recipes?${params}`);
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function fetchTags(lang = 'en') {
   const res = await fetch(`${BASE}/recipes/tags?lang=${lang}`);
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function fetchRecipe(id) {
   const res = await fetch(`${BASE}/recipes/${id}`);
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function createRecipe(data) {
@@ -27,7 +35,7 @@ export async function createRecipe(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function updateRecipe(id, data) {
@@ -37,12 +45,12 @@ export async function updateRecipe(id, data) {
     method: 'PUT',
     body: formData,
   });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function deleteRecipe(id) {
   const res = await fetch(`${BASE}/recipes/${id}`, { method: 'DELETE' });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function importFromHelloFresh(url) {
@@ -51,11 +59,7 @@ export async function importFromHelloFresh(url) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
   });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error);
-  }
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function importBulk(recipes, language = 'en') {
@@ -64,7 +68,7 @@ export async function importBulk(recipes, language = 'en') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipes, language }),
   });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function startScrapeAll(limit = 0, lang = 'en') {
@@ -73,17 +77,17 @@ export async function startScrapeAll(limit = 0, lang = 'en') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ limit, lang }),
   });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function getScrapeStatus() {
   const res = await fetch(`${BASE}/import/hellofresh/scrape-status`);
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function stopScrape() {
   const res = await fetch(`${BASE}/import/hellofresh/scrape-stop`, { method: 'POST' });
-  return res.json();
+  return checkResponse(res);
 }
 
 export async function generateShoppingList(recipeIds) {
@@ -92,5 +96,5 @@ export async function generateShoppingList(recipeIds) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeIds }),
   });
-  return res.json();
+  return checkResponse(res);
 }
