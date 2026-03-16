@@ -41,9 +41,9 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
     onLoadPlan(plan.recipes);
   };
 
-  const deletePlan = (planId) => {
-    if (!window.confirm(i.confirmDeletePlan ? i.confirmDeletePlan('plan') : 'Delete this plan?')) return;
-    const updated = savedPlans.filter((p) => p.id !== planId);
+  const deletePlan = (plan) => {
+    if (!window.confirm(i.confirmDeletePlan(plan.name))) return;
+    const updated = savedPlans.filter((p) => p.id !== plan.id);
     setSavedPlans(updated);
     persistPlans(updated);
   };
@@ -125,7 +125,7 @@ export default function Cart({ lang, selectedRecipes, selectedIds, onToggleSelec
                   <button className="btn btn-outline btn-sm" onClick={() => loadPlan(plan)}>
                     {i.loadPlan}
                   </button>
-                  <button className="btn btn-outline btn-sm delete-plan" onClick={() => deletePlan(plan.id)}>
+                  <button className="btn btn-outline btn-sm delete-plan" onClick={() => deletePlan(plan)}>
                     {i.deletePlan}
                   </button>
                 </div>

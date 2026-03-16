@@ -29,7 +29,6 @@ export default function App() {
   const switchLang = (newLang) => {
     setLang(newLang);
     localStorage.setItem('lang', newLang);
-    setSelectedRecipes([]);
   };
 
   return (
