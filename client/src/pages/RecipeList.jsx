@@ -25,6 +25,7 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
   const [availableTags, setAvailableTags] = useState({ meals: [], cuisines: [] });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const i = getT(lang);
 
   // Load tags dynamically for the current language
@@ -49,6 +50,8 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
         }
       }
       setAvailableTags({ meals: meals.slice(0, 12), cuisines: cuisines.slice(0, 12) });
+    }).catch(() => {
+      // Silently fall back to empty tags on error
     });
   }, [lang]);
 
@@ -84,14 +87,21 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
       return;
     }
     setLoading(true);
-    const data = await fetchRecipes({
-      search: searchTerm,
-      tags: tags.join(','),
-      page: pageNum,
-      lang: language,
-    });
-    setResults(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await fetchRecipes({
+        search: searchTerm,
+        tags: tags.join(','),
+        page: pageNum,
+        lang: language,
+      });
+      setResults(data);
+    } catch (err) {
+      setError(err.message);
+      setResults(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -170,6 +180,12 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
       {loading && (
         <p style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-light)' }}>
           {i.searching}
+        </p>
+      )}
+
+      {error && (
+        <p style={{ padding: '40px 0', textAlign: 'center', color: 'var(--danger)' }}>
+          {error}
         </p>
       )}
 
