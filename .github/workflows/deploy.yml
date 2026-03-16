@@ -10,7 +10,7 @@ env:
   VPS1_USER: ubuntu
   VPS1_HOST: 51.178.80.50
   VPS1_PORT: 51422
-  APP_DIR: /opt/hellofresh
+  APP_DIR: /home/ubuntu/hellofresh
 
 jobs:
   deploy:
@@ -39,11 +39,11 @@ jobs:
             set -e
 
             # Clone on first deploy, pull on subsequent
-            if [ ! -d "/opt/hellofresh/.git" ]; then
-              git clone https://github.com/devosland/hellofresh.git /opt/hellofresh
+            if [ ! -d "/home/ubuntu/hellofresh/.git" ]; then
+              git clone https://github.com/devosland/hellofresh.git /home/ubuntu/hellofresh
             fi
 
-            cd /opt/hellofresh
+            cd /home/ubuntu/hellofresh
             git fetch origin master
             git reset --hard origin/master
 
