@@ -354,40 +354,40 @@ router.post('/hellofresh/scrape-stop', (req, res) => {
 router.post('/bulk', validate(bulkImportSchema), async (req, res) => {
   try {
     const { recipes, language } = req.body;
-    const created = [];
-    for (const data of recipes) {
-      const recipe = await prisma.recipe.create({
-        data: {
-          title: data.title,
-          description: data.description || '',
-          imageUrl: data.imageUrl || null,
-          servings: data.servings || 2,
-          prepTime: data.prepTime || null,
-          totalTime: data.totalTime || null,
-          difficulty: data.difficulty || null,
-          cuisine: data.cuisine || null,
-          tags: data.tags || [],
-          sourceUrl: data.sourceUrl || null,
-          language,
-          ingredients: {
-            create: (data.ingredients || []).map((ing) => ({
-              name: ing.name || ing,
-              amount: ing.amount || '',
-              unit: ing.unit || '',
-            })),
+    const created = await prisma.$transaction(
+      recipes.map((data) =>
+        prisma.recipe.create({
+          data: {
+            title: data.title,
+            description: data.description || '',
+            imageUrl: data.imageUrl || null,
+            servings: data.servings || 2,
+            prepTime: data.prepTime || null,
+            totalTime: data.totalTime || null,
+            difficulty: data.difficulty || null,
+            cuisine: data.cuisine || null,
+            tags: data.tags || [],
+            sourceUrl: data.sourceUrl || null,
+            language,
+            ingredients: {
+              create: (data.ingredients || []).map((ing) => ({
+                name: typeof ing === 'string' ? ing : (ing.name || ''),
+                amount: typeof ing === 'string' ? '' : (ing.amount || ''),
+                unit: typeof ing === 'string' ? '' : (ing.unit || ''),
+              })),
+            },
+            steps: {
+              create: (data.steps || []).map((step, i) => ({
+                stepNumber: i + 1,
+                instruction: typeof step === 'string' ? step : (step.instruction || ''),
+                imageUrl: typeof step === 'string' ? null : (step.imageUrl || null),
+              })),
+            },
           },
-          steps: {
-            create: (data.steps || []).map((step, i) => ({
-              stepNumber: i + 1,
-              instruction: step.instruction || step,
-              imageUrl: step.imageUrl || null,
-            })),
-          },
-        },
-        include: { ingredients: true, steps: true },
-      });
-      created.push(recipe);
-    }
+          include: { ingredients: true, steps: true },
+        })
+      )
+    );
     res.status(201).json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });

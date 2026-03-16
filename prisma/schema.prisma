@@ -26,6 +26,9 @@ model Recipe {
   steps       Step[]
 
   @@index([language])
+  @@index([sourceUrl])
+  @@index([title])
+  @@index([createdAt])
 }
 
 model Ingredient {

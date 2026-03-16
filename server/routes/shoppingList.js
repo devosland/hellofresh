@@ -43,7 +43,8 @@ router.post('/', async (req, res) => {
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    res.json({ recipeCount: recipes.length, shoppingList });
+    const recipeNames = recipes.map((r) => r.title);
+    res.json({ recipeCount: recipes.length, recipeNames, shoppingList });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

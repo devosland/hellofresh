@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { generateShoppingList, fetchRecipe } from '../api';
+import { generateShoppingList } from '../api';
 import { t } from '../i18n';
 
 export default function ShoppingList({ selectedIds, onClear, lang }) {
   const [data, setData] = useState(null);
-  const [recipeNames, setRecipeNames] = useState([]);
   const [checked, setChecked] = useState({});
   const [loading, setLoading] = useState(true);
   const printRef = useRef();
@@ -17,14 +16,10 @@ export default function ShoppingList({ selectedIds, onClear, lang }) {
       return;
     }
 
-    Promise.all([
-      generateShoppingList(selectedIds),
-      Promise.all(selectedIds.map((id) => fetchRecipe(id))),
-    ]).then(([list, recipes]) => {
+    generateShoppingList(selectedIds).then((list) => {
       setData(list);
-      setRecipeNames(recipes.map((r) => r.title));
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [selectedIds]);
 
   const toggleCheck = (name) => {
@@ -64,7 +59,7 @@ export default function ShoppingList({ selectedIds, onClear, lang }) {
       </div>
 
       <p className="recipe-names">
-        {i.forRecipes(recipeNames.join(', '), data?.recipeCount)}
+        {i.forRecipes(data?.recipeNames?.join(', '), data?.recipeCount)}
       </p>
 
       <ul>
