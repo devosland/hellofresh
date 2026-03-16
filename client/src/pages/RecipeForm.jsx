@@ -27,6 +27,7 @@ export default function RecipeForm({ lang }) {
   const [ingredients, setIngredients] = useState([{ ...emptyIngredient }]);
   const [steps, setSteps] = useState([{ ...emptyStep }]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isEdit) {
@@ -73,26 +74,35 @@ export default function RecipeForm({ lang }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const data = {
-      ...form,
-      servings: parseInt(form.servings) || 2,
-      language: lang,
-      tags: form.tags
-        ? form.tags.split(',').map((x) => x.trim()).filter(Boolean)
-        : [],
-      ingredients: ingredients.filter((ing) => ing.name.trim()),
-      steps: steps.filter((s) => s.instruction.trim()).map((s, idx) => ({
-        ...s,
-        stepNumber: idx + 1,
-      })),
-    };
+    setError(null);
+    try {
+      const data = {
+        ...form,
+        servings: parseInt(form.servings) || 2,
+        language: lang,
+        tags: form.tags
+          ? form.tags.split(',').map((x) => x.trim()).filter(Boolean)
+          : [],
+        ingredients: ingredients.filter((ing) => ing.name.trim()),
+        steps: steps.filter((s) => s.instruction.trim()).map((s, idx) => ({
+          ...s,
+          stepNumber: idx + 1,
+        })),
+      };
 
-    if (isEdit) {
-      await updateRecipe(id, data);
-      navigate(`/recipe/${id}`);
-    } else {
-      const created = await createRecipe(data);
-      navigate(`/recipe/${created.id}`);
+      if (isEdit) {
+        await updateRecipe(id, data);
+        navigate(`/recipe/${id}`);
+      } else {
+        const created = await createRecipe(data);
+        if (created?.id) {
+          navigate(`/recipe/${created.id}`);
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -100,6 +110,11 @@ export default function RecipeForm({ lang }) {
     <div className="form-page">
       <h2>{isEdit ? i.editRecipe : i.addRecipe}</h2>
       <form onSubmit={handleSubmit}>
+        {error && (
+          <p style={{ color: 'var(--danger)', marginBottom: '16px', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px' }}>
+            {error}
+          </p>
+        )}
         <div className="form-group">
           <label>{i.titleLabel}</label>
           <input name="title" value={form.title} onChange={handleChange} required />
