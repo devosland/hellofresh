@@ -206,7 +206,8 @@ router.post('/json', validate(recipeCreateSchema), async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const data = JSON.parse(req.body.data || '{}');
+    // Support both JSON body and FormData (multipart)
+    const data = req.is('json') ? req.body : JSON.parse(req.body.data || '{}');
     const result = recipeUpdateSchema.safeParse(data);
     if (!result.success) {
       const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);

@@ -39,11 +39,10 @@ export async function createRecipe(data) {
 }
 
 export async function updateRecipe(id, data) {
-  const formData = new FormData();
-  formData.append('data', JSON.stringify(data));
   const res = await fetch(`${BASE}/recipes/${id}`, {
     method: 'PUT',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
   });
   return checkResponse(res);
 }

@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { fetchRecipe, createRecipe, updateRecipe } from '../api';
 import { t } from '../i18n';
 
-const emptyIngredient = { amount: '', unit: '', name: '' };
-const emptyStep = { instruction: '', imageUrl: '' };
+let nextId = 1;
+const withId = (obj) => ({ ...obj, _id: nextId++ });
+const emptyIngredient = () => withId({ amount: '', unit: '', name: '' });
+const emptyStep = () => withId({ instruction: '', imageUrl: '' });
 
 export default function RecipeForm({ lang }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const canGoBack = location.key !== 'default';
   const isEdit = Boolean(id);
   const i = t(lang);
 
@@ -24,8 +28,8 @@ export default function RecipeForm({ lang }) {
     tags: '',
     sourceUrl: '',
   });
-  const [ingredients, setIngredients] = useState([{ ...emptyIngredient }]);
-  const [steps, setSteps] = useState([{ ...emptyStep }]);
+  const [ingredients, setIngredients] = useState([emptyIngredient()]);
+  const [steps, setSteps] = useState([emptyStep()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -44,8 +48,8 @@ export default function RecipeForm({ lang }) {
           tags: (r.tags || []).join(', '),
           sourceUrl: r.sourceUrl || '',
         });
-        setIngredients(r.ingredients.length > 0 ? r.ingredients : [{ ...emptyIngredient }]);
-        setSteps(r.steps.length > 0 ? r.steps.map((s) => ({ instruction: s.instruction, imageUrl: s.imageUrl || '' })) : [{ ...emptyStep }]);
+        setIngredients(r.ingredients.length > 0 ? r.ingredients.map(withId) : [emptyIngredient()]);
+        setSteps(r.steps.length > 0 ? r.steps.map((s) => withId({ instruction: s.instruction, imageUrl: s.imageUrl || '' })) : [emptyStep()]);
       });
     }
   }, [id, isEdit]);
@@ -66,9 +70,9 @@ export default function RecipeForm({ lang }) {
     setSteps(updated);
   };
 
-  const addIngredient = () => setIngredients([...ingredients, { ...emptyIngredient }]);
+  const addIngredient = () => setIngredients([...ingredients, emptyIngredient()]);
   const removeIngredient = (idx) => setIngredients(ingredients.filter((_, j) => j !== idx));
-  const addStep = () => setSteps([...steps, { ...emptyStep }]);
+  const addStep = () => setSteps([...steps, emptyStep()]);
   const removeStep = (idx) => setSteps(steps.filter((_, j) => j !== idx));
 
   const handleSubmit = async (e) => {
@@ -172,7 +176,7 @@ export default function RecipeForm({ lang }) {
           {i.ingredients}
         </h3>
         {ingredients.map((ing, idx) => (
-          <div key={idx} className="dynamic-list-item">
+          <div key={ing._id} className="dynamic-list-item">
             <input
               style={{ width: '80px' }}
               placeholder={i.qty}
@@ -206,7 +210,7 @@ export default function RecipeForm({ lang }) {
           {i.steps}
         </h3>
         {steps.map((step, idx) => (
-          <div key={idx} style={{ marginBottom: '12px' }}>
+          <div key={step._id} style={{ marginBottom: '12px' }}>
             <div className="dynamic-list-item">
               <span style={{ fontWeight: 600, minWidth: '30px' }}>{idx + 1}.</span>
               <textarea
@@ -239,7 +243,7 @@ export default function RecipeForm({ lang }) {
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? i.saving : isEdit ? i.updateRecipe : i.saveRecipe}
           </button>
-          <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>
+          <button type="button" className="btn btn-outline" onClick={() => canGoBack ? navigate(-1) : navigate('/')}>
             {i.cancel}
           </button>
         </div>

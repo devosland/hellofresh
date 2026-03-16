@@ -132,7 +132,7 @@ export default function RecipeList({ lang, selectedIds, onToggleSelect, onClearS
           <input
             type="text"
             className="search-input"
-            placeholder={i.placeholder}
+            placeholder={i.searchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
