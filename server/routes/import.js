@@ -197,7 +197,7 @@ async function countSegment(token, baseUrl, extraParams = '') {
   return data?.total || 0;
 }
 
-async function scrapeSegment(token, config, lang, baseUrl, extraParams, existingUrls, maxRecipes) {
+async function scrapeSegment(token, config, lang, baseUrl, extraParams, existingUrls, existingTitles, maxRecipes) {
   let offset = 0;
   const segTotal = await countSegment(token, baseUrl, extraParams);
   const cap = Math.min(segTotal, API_MAX_OFFSET, maxRecipes > 0 ? maxRecipes : Infinity);
@@ -324,7 +324,7 @@ router.post('/hellofresh/scrape-all', async (req, res) => {
         scrapeStatus.segment = `${i + 1}/${segments.length}: ${seg.label}`;
         scrapeStatus.segmentsCompleted = i;
 
-        token = await scrapeSegment(token, config, lang, baseUrl, seg.params, existingUrls, limit);
+        token = await scrapeSegment(token, config, lang, baseUrl, seg.params, existingUrls, existingTitles, limit);
       }
 
       scrapeStatus.segmentsCompleted = segments.length;
