@@ -4,6 +4,16 @@ const translations = {
     recipes: 'Recipes',
     add: '+ Add',
     import: 'Import',
+    pantry: 'Pantry',
+
+    // PantryPage
+    pantryTitle: 'Cook with what you have',
+    pantryDescription: 'Add ingredients you have on hand. Recipes need to contain all of them.',
+    pantryInputPlaceholder: 'Type an ingredient (e.g. ground beef)',
+    addToPantry: '+ Add',
+    findRecipes: 'Find recipes',
+    pantryNoIngredients: 'Add at least one ingredient to start.',
+    noPantryResults: 'No recipes contain all of those ingredients. Try removing one.',
 
     // RecipeList
     heroTitle: 'What do you feel like cooking?',
@@ -120,6 +130,16 @@ const translations = {
     recipes: 'Recettes',
     add: '+ Ajouter',
     import: 'Importer',
+    pantry: 'Garde-manger',
+
+    // PantryPage
+    pantryTitle: 'Cuisiner avec ce que vous avez',
+    pantryDescription: 'Ajoutez des ingredients que vous avez sous la main. Les recettes doivent tous les contenir.',
+    pantryInputPlaceholder: 'Tapez un ingredient (ex. boeuf hache)',
+    addToPantry: '+ Ajouter',
+    findRecipes: 'Trouver des recettes',
+    pantryNoIngredients: 'Ajoutez au moins un ingredient pour commencer.',
+    noPantryResults: 'Aucune recette ne contient tous ces ingredients. Essayez d\'en retirer un.',
 
     // RecipeList
     heroTitle: "Qu'avez-vous envie de cuisiner?",
