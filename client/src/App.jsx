@@ -7,6 +7,7 @@ import RecipeForm from './pages/RecipeForm';
 import ImportPage from './pages/ImportPage';
 import ShoppingList from './pages/ShoppingList';
 import Cart from './pages/Cart';
+import PantryPage from './pages/PantryPage';
 
 export default function App() {
   const location = useLocation();
@@ -39,6 +40,9 @@ export default function App() {
           <nav className="nav-links">
             <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
               {i.recipes}
+            </Link>
+            <Link to="/pantry" className={location.pathname === '/pantry' ? 'active' : ''}>
+              {i.pantry}
             </Link>
             <Link to="/add" className={location.pathname === '/add' ? 'active' : ''}>
               {i.add}
@@ -90,6 +94,7 @@ export default function App() {
           <Route path="/add" element={<RecipeForm lang={lang} />} />
           <Route path="/edit/:id" element={<RecipeForm lang={lang} />} />
           <Route path="/import" element={<ImportPage lang={lang} />} />
+          <Route path="/pantry" element={<PantryPage lang={lang} />} />
           <Route
             path="/cart"
             element={

@@ -52,6 +52,82 @@ router.get('/tags', async (req, res) => {
   }
 });
 
+// Pantry search: find recipes containing ALL of the listed ingredients.
+// Example: GET /api/recipes/pantry?ingredients=ground+beef,cheddar&lang=en
+router.get('/pantry', async (req, res) => {
+  try {
+    const lang = langSchema.parse(req.query.lang);
+    const { page = '1', limit = '24' } = req.query;
+    const raw = (req.query.ingredients || '').toString();
+
+    const ingredients = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (ingredients.length === 0) {
+      return res.json({ recipes: [], total: 0, page: 1, totalPages: 0 });
+    }
+
+    const pageNum = Math.max(1, parseInt(page));
+    const pageSize = Math.min(60, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * pageSize;
+
+    const where = {
+      language: lang,
+      AND: ingredients.map((name) => ({
+        ingredients: { some: { name: { contains: name, mode: 'insensitive' } } },
+      })),
+    };
+
+    const [recipes, total] = await Promise.all([
+      prisma.recipe.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+      prisma.recipe.count({ where }),
+    ]);
+
+    res.json({
+      recipes,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ingredient-name autocomplete for the pantry search.
+// Returns distinct names matching q (case-insensitive substring), most frequent first.
+router.get('/ingredient-names', async (req, res) => {
+  try {
+    const lang = langSchema.parse(req.query.lang);
+    const q = (req.query.q || '').toString().trim();
+    if (!q) return res.json([]);
+
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 10));
+    const pattern = `%${q}%`;
+
+    const rows = await prisma.$queryRaw`
+      SELECT i.name, COUNT(*)::int AS count
+      FROM "Ingredient" i
+      JOIN "Recipe" r ON r.id = i."recipeId"
+      WHERE r.language = ${lang}
+        AND i.name ILIKE ${pattern}
+      GROUP BY i.name
+      ORDER BY count DESC, i.name ASC
+      LIMIT ${limit}
+    `;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Search recipes (returns nothing if no query)
 router.get('/', async (req, res) => {
   try {

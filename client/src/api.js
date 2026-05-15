@@ -24,6 +24,25 @@ export async function fetchTags(lang = 'en') {
   return checkResponse(res);
 }
 
+export async function fetchPantryRecipes({ ingredients = [], page = 1, limit = 24, lang = 'en' } = {}) {
+  const params = new URLSearchParams();
+  params.set('ingredients', ingredients.join(','));
+  params.set('page', page);
+  params.set('limit', limit);
+  params.set('lang', lang);
+  const res = await fetch(`${BASE}/recipes/pantry?${params}`);
+  return checkResponse(res);
+}
+
+export async function fetchIngredientNames({ q, lang = 'en', limit = 10 } = {}) {
+  const params = new URLSearchParams();
+  params.set('q', q);
+  params.set('lang', lang);
+  params.set('limit', limit);
+  const res = await fetch(`${BASE}/recipes/ingredient-names?${params}`);
+  return checkResponse(res);
+}
+
 export async function fetchRecipe(id) {
   const res = await fetch(`${BASE}/recipes/${id}`);
   return checkResponse(res);
